@@ -1,0 +1,134 @@
+---
+title: "Active-Travel-UK"
+author: "Nathanael Sheehan"
+date: "16/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Active Travel in the UK.
+
+Active travel is the act of moving through space via cycling or walking. As a concept, active travel has become commonplace due to its societal benefits in public health and sustainablity. Public perception of active travel has grown through the COVID-19 pandemic. As a result, there is now a general consesus among researchers, local and national government and industries that active travel is key to building a more sustainable urban environment.
+
+In this RPubs, I outline how you can use the <a href="https://cran.r-project.org/web/packages/stplanr/" target="_top"/>stplanr</a> package to visualise active travel in the UK using 2011 census data. 
+
+### Prerequisites.
+```{r}
+#Install and load the following libraries
+
+#stplanr provides tools for sustainable transport planning for spatial data
+if (!require(stplanr)) {
+  install.packages("stplanr", repos = "http://cran.us.r-project.org")
+  require(stplanr)
+}
+#dplyr provides tools sorting and managing data
+if (!require(dplyr)) {
+  install.packages("dplyr", repos = "http://cran.us.r-project.org")
+  require(dplyr)
+}
+#dplyr provides tools to read spatial data
+if (!require(sf)) {
+  install.packages("sf", repos = "http://cran.us.r-project.org")
+  require(sf)
+}
+#tmap provides tools for visualisation
+if (!require(tmap)) {
+  install.packages("tmap", repos = "http://cran.us.r-project.org")
+  require(tmap)
+}
+```
+
+### Fetch flow data
+Once you have the following libraries installed, its time to begin the analysis. Firstly, you need to fetch orgin and destination data for the UK. The stplanr package makes this very easy, with one line of code you can fetch data at the MSOA level.
+```{r}
+# Fetch origin and destination data for the england and wales
+od_all <- pct::get_od()
+```
+
+### Fetch centroids and reproject
+Now you have flow data, you need to get the centroids for each MSOA in order to visualise flows to the middle of the geographical area. Once you have these you can the transform them into a simple feature with a 4326 projection. 
+```{r}
+# Fetch centroids for england and wales. Then transofrm to 4326 spatial projection.
+centroids_all <- pct::get_centroids_ew() %>% sf::st_transform(4326)
+```
+
+### Fetch study area geometry
+Next up you want to fetch the geometry of your study area. In this example I focus on Manchester. However, you can easily change this to any region in the UK through querying ```pct_regions```
+
+```{r}
+# Saving greater manchester geometry to global environment
+manchester <-
+  pct::pct_regions %>% filter(region_name == "greater-manchester")
+```
+
+### Filter centroids to study area
+You then want to filter the centroids you have for all of england and wales to your study area. 
+```{r}
+# Saving greater manchester geometry to global environment
+centroids_manchester <- centroids_all[manchester,]
+
+od_manchester <- od_all %>%
+  filter(geo_code1 %in% centroids_manchester$msoa11cd) %>%
+  filter(geo_code2 %in% centroids_manchester$msoa11cd)
+
+od_manchester <- od_all[od_all$geo_code1 %in% centroids_manchester$msoa11cd &
+                          od_all$geo_code2 %in% centroids_manchester$msoa11cd,]
+
+```
+
+### Create desire lines of routes
+Desire lines show the connections between origin and destination centroids, they are created easily using the ```od2line``` function.
+```{r}
+#Create desire lines
+desire_lines_manchester <-
+  od2line(od_manchester, centroids_manchester)
+```
+
+### Setting a minimum threshold 
+Some trips aren't worth showing, not because they aren't important, but because they will be too thin too see. So by setting a minimum threshold we can ensure all desire lines are visible.
+```{r}
+#Set min threshold and then filter trips to the freshold
+min_trips_threshold <- 20
+desire_lines_inter <-
+  desire_lines_manchester %>% filter(geo_code1 != geo_code2)
+desire_lines_intra <-
+  desire_lines_manchester %>% filter(geo_code1 == geo_code2)
+desire_lines_top <-
+  desire_lines_inter %>% filter(all >= min_trips_threshold)
+
+```
+
+### Plot results
+To create an interactive plot set the tmap mode to view
+```{r}
+#Set tmap to interactive
+tmap_mode("view")
+desire_lines_top <- desire_lines_top %>% arrange(Active)
+```
+
+
+
+```{r}
+tm_basemap(leaflet::providers$Stamen.TonerLite) +
+  tm_shape(manchester) + tm_borders() +
+  tm_shape(desire_lines_top) +
+  tm_lines(
+    palette = "plasma",
+    breaks = c(0, 5, 10, 20, 40, 100),
+    lwd = "all",
+    scale = 9,
+    title.lwd = "Number of trips",
+    alpha = 0.5,
+    col = "Active",
+    title = "Active travel (%)",
+    legend.lwd.show = FALSE
+  ) +
+  tm_scale_bar() +
+  tm_layout(legend.bg.alpha = 0.5,
+            legend.bg.color = "white")
+```
+
+

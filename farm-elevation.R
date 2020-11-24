@@ -1,18 +1,22 @@
 library(rayshader)
 library(elevatr)
 library(magrittr)
+library(sf)
+library(rayshader)
+library(elevatr)
+library(raster)
 
-#from the .tif file
-eltif = raster_to_matrix("~/Data/farmLansat 2/LM05_L1GS_204025_20121108_20180522_01_T2_B1.TIF")
+ben <- st_sfc(st_point(c(-5.0036,56.7969)), crs = 4326) %>% 
+  st_transform(32719) %>% 
+  st_buffer(dist = 50000)
 
-#or from the elevatr package
-elevation <- get_elev_raster(lake, z = 11, src = "aws")
+a <- get_elev_raster(as_Spatial(ben), z = 9, clip = "locations")
 
-elmat2 = matrix(raster::extract(elevation,raster::extent(elevation)),
-                nrow=ncol(elevation),ncol=nrow(elevation))
+elmat2 = matrix(raster::extract(a,raster::extent(a)),
+                nrow=ncol(a),ncol=nrow(a))
 
 elmat2 %>%
-  sphere_shade() %>% 
+  sphere_shade(texture = "imhof2") %>% 
   add_water(detect_water(elmat2, zscale = 20), color = "lightblue") %>%
   add_shadow(ray_shade(elmat2, zscale = 3), 0.5) %>%
   plot_3d(
@@ -20,7 +24,7 @@ elmat2 %>%
     zscale =20,
     fov = 0,
     theta = 45,
-    zoom = 0.68,
+    zoom = 0.48,
     phi = 45,
     baseshape = "rectangle",
     windowsize = c(800, 800),
@@ -31,8 +35,8 @@ elmat2 %>%
     soliddepth = -30,
   )
 
-filename_movie = ("~/Data/farmLansat 2/farmElevation")
+filename_movie = ("~/Data/farmLansat 2/ben-nevis")
 
 render_movie(filename = filename_movie, type = "orbit", 
              frames = 120,  phi = 30, zoom = 0.8, theta = -90,
-             title_text = "Trevengleath Farm Elevation \nNathanael Sheehan")
+             title_text = "Ben Nevis, Scotland \nNathanael Sheehan")

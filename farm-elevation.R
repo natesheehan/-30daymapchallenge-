@@ -24,21 +24,15 @@ elmat2 %>%
     phi = 45,
     baseshape = "rectangle",
     windowsize = c(800, 800),
-    solidcolor = "lavenderblush1",
+    solidcolor = "gray30",
     watercolor = "lightblue",
-    solidlinecolor = "gray19",
-    background = "lavenderblush1",
+    solidlinecolor = "gray30",
+    background = "honeydew2",
     soliddepth = -30,
   )
 
-text <- paste0("Trevengleath Farm Elevation",
-               strrep("\n", 38),
-               "Nathanael Sheehan // pkg - Rayshader")
+filename_movie = ("~/Data/farmLansat 2/farmElevation")
 
-render_snapshot(
-  filename = "cornwall-farm.png",
-  title_text = text,
-  title_size = 16,
-  title_color = "grey50",
-  clear = T
-)
+render_movie(filename = filename_movie, type = "orbit", 
+             frames = 120,  phi = 30, zoom = 0.8, theta = -90,
+             title_text = "Trevengleath Farm Elevation \nNathanael Sheehan")
